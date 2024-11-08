@@ -1,211 +1,397 @@
-# M3U Recommender Playlist Generator
+# Seedify
 
-## Overview
-
-This script reads an `.m3u` playlist file, parses the track information, searches for those tracks on Spotify, generates song recommendations based on them, and creates a new playlist in your Spotify account with the recommended tracks.
-
-## Features
-
-- **Parse M3U Playlists**: Extracts artist and title information from `.m3u` files.
-- **Spotify Integration**: Searches for tracks and generates recommendations using the Spotify API.
-- **Secure Credential Storage**: Encrypts and stores your Spotify API credentials securely.
-- **Automated Playlist Creation**: Creates a new playlist in your Spotify account and adds the recommended tracks.
+![Spotify](https://img.shields.io/badge/Spotify-1DB954?style=for-the-badge&logo=spotify&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
 ## Table of Contents
 
+- [Introduction](#introduction)
+- [Features](#features)
 - [Prerequisites](#prerequisites)
-- [Setup Instructions](#setup-instructions)
-  - [1. Install Python Packages](#1-install-python-packages)
-  - [2. Set Up a Spotify Developer Account](#2-set-up-a-spotify-developer-account)
-  - [3. Prepare the Script](#3-prepare-the-script)
-  - [4. Prepare Your M3U Playlist File](#4-prepare-your-m3u-playlist-file)
-  - [5. Run the Script](#5-run-the-script)
+  - [Spotify Developer Account](#spotify-developer-account)
+  - [Python Installation](#python-installation)
+    - [macOS (Using Homebrew)](#macos-using-homebrew)
+    - [Windows](#windows)
+- [Installation](#installation)
+  - [Clone the Repository](#clone-the-repository)
+  - [Set Up Virtual Environment](#set-up-virtual-environment)
+  - [Install Dependencies](#install-dependencies)
 - [Usage](#usage)
+  - [Preparing Input](#preparing-input)
+    - [M3U Playlists](#m3u-playlists)
+    - [Single Audio Files](#single-audio-files)
+    - [Folders Containing Audio Files](#folders-containing-audio-files)
+  - [Running the Script](#running-the-script)
+  - [User Prompts](#user-prompts)
+    - [Additional Criteria](#additional-criteria)
+    - [Maximum Playlist Length](#maximum-playlist-length)
+    - [Playlist Naming](#playlist-naming)
 - [Troubleshooting](#troubleshooting)
-- [Security Note](#security-note)
 - [Contributing](#contributing)
 - [License](#license)
-- [Acknowledgments](#acknowledgments)
+- [Contact](#contact)
+
+## Introduction
+
+**Seedify** is a Python-based tool that generates Spotify playlists based on your existing M3U playlists, individual audio files, or folders containing audio files. By leveraging the Spotify API, Seedify recommends tracks tailored to your musical preferences, ensuring a personalized and enjoyable listening experience.
+
+## Features
+
+- **Flexible Input:** Supports M3U playlists, individual audio files, and entire folders (searched recursively).
+- **Secure Credentials:** Encrypts and securely stores Spotify Developer credentials.
+- **Customized Recommendations:** Allows specification of criteria like valence, popularity, tempo, energy, danceability, and release year.
+- **Playlist Length Control:** Ensures the playlist length meets user preferences, defaulting to the number of input tracks.
+- **Genre-Based Naming:** Suggests playlist names based on the most common genres among recommended tracks.
+- **Robust Error Handling:** Provides meaningful feedback and handles API limitations gracefully.
 
 ## Prerequisites
 
-- **Python 3.x** installed on your system.
-- **Spotify Account**: A free or premium Spotify account.
-- **Spotify Developer Account**: To obtain `CLIENT_ID` and `CLIENT_SECRET`.
+### Spotify Developer Account
 
-## Setup Instructions
+To use Seedify, you need a Spotify Developer account and a Spotify Premium subscription.
 
-### 1. Install Python Packages
-
-Install the required Python packages using `pip`:
-
-```bash
-pip install spotipy cryptography
-```
-
-### 2. Set Up a Spotify Developer Account
-
-To interact with the Spotify API, you need to create a Spotify Developer account and register an application to obtain your `CLIENT_ID` and `CLIENT_SECRET`.
-
-#### Steps:
-
-1. **Create a Spotify Account** (if you don't have one):
-
-   - Go to [Spotify Sign Up](https://www.spotify.com/signup/) and create an account.
-
-2. **Create a Spotify Developer Account**:
-
+1. **Create a Spotify Developer Account:**
    - Visit the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/).
-   - Log in with your Spotify account credentials.
-   - Accept the terms and conditions if prompted.
+   - Log in with your Spotify Premium credentials or create a Spotify account if you don't have one.
 
-3. **Create a New Application**:
-
-   - Click on **"Create An App"**.
-   - Fill in the details:
-     - **App Name**: Choose a name (e.g., "M3U Recommender Playlist Generator").
-     - **App Description**: Briefly describe your app.
+2. **Create an Application:**
+   - Click on **"Create an App"**.
+   - Provide an **App Name** and **App Description**.
    - Agree to the terms and click **"Create"**.
 
-4. **Edit Settings**:
+3. **Retrieve Credentials:**
+   - In the **"Overview"** tab, note down your **Client ID** and **Client Secret**.
+   - **Set Redirect URI:** Go to **"Edit Settings"** and add `http://localhost:8888/callback` to the **Redirect URIs**. Click **"Save"**.
 
-   - In your app dashboard, click on **"Edit Settings"**.
-   - Under **Redirect URIs**, add: `http://localhost:8888/callback`
-     - This URI must match the `REDIRECT_URI` in the script.
-   - Click **"Add"** and then **"Save"**.
+### Python Installation
 
-5. **Obtain Credentials**:
+#### macOS (Using Homebrew)
 
-   - In the app dashboard, you'll find your **Client ID**.
-   - Click on **"Show Client Secret"** to reveal your **Client Secret**.
-   - **Important**: Keep these credentials secure.
+1. **Install Homebrew (if not already installed):**
 
-### 3. Prepare the Script
+   Open Terminal and run:
 
-1. **Save the Script**:
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
 
-   - Save the provided script as `m3u_recommender_playlist.py`.
+2. **Install Python:**
 
-2. **Initial Run to Save Credentials**:
+   ```bash
+   brew install python
+   ```
 
-   - Open a terminal and run:
+3. **Verify Installation:**
 
-     ```bash
-     python m3u_recommender_playlist.py
-     ```
+   ```bash
+   python3 --version
+   ```
 
-   - When prompted, enter your **Client ID** and **Client Secret**.
-   - The credentials will be encrypted and saved in `credentials.enc`.
+#### Windows
 
-### 4. Prepare Your M3U Playlist File
+1. **Download Python Installer:**
 
-- Ensure you have an `.m3u` playlist file with the correct format.
-- Place the `.m3u` file in a directory accessible from the script.
+   - Visit the [official Python website](https://www.python.org/downloads/windows/).
+   - Download the latest Python 3.x installer.
 
-### 5. Run the Script
+2. **Run the Installer:**
 
-Execute the script with the path to your `.m3u` file:
+   - Double-click the installer.
+   - **Important:** Check **"Add Python 3.x to PATH"**.
+   - Click **"Install Now"**.
+
+3. **Verify Installation:**
+
+   Open Command Prompt and run:
+
+   ```bash
+   python --version
+   ```
+
+   If `python` points to Python 3.x, you're all set.
+
+## Installation
+
+### Clone the Repository
 
 ```bash
-python m3u_recommender_playlist.py /path/to/your/playlist.m3u
+git clone https://github.com/yourusername/seedify.git
+cd seedify
 ```
 
-- Replace `/path/to/your/playlist.m3u` with the actual path.
+*Replace `yourusername` with the actual GitHub username if applicable.*
+
+### Set Up Virtual Environment
+
+It's recommended to use a virtual environment to manage dependencies.
+
+#### macOS and Windows
+
+1. **Create a Virtual Environment:**
+
+   ```bash
+   python3 -m venv venv
+   ```
+
+   On Windows:
+
+   ```bash
+   python -m venv venv
+   ```
+
+2. **Activate the Virtual Environment:**
+
+   - **macOS:**
+
+     ```bash
+     source venv/bin/activate
+     ```
+
+   - **Windows:**
+
+     ```bash
+     venv\Scripts\activate
+     ```
+
+   You should see `(venv)` prefixed in your terminal.
+
+### Install Dependencies
+
+Ensure you have a `requirements.txt` file present. Install the required Python packages using `pip`:
+
+```bash
+pip install -r requirements.txt
+```
+
+*If `requirements.txt` is not present, create one with the following content:*
+
+```txt
+spotipy
+cryptography
+mutagen
+```
+
+Then run the `pip install` command again.
 
 ## Usage
 
-1. **Run the Script**:
+Seedify can process M3U playlists, individual audio files, or folders to generate a Spotify playlist with recommended tracks.
+
+### Preparing Input
+
+#### M3U Playlists
+
+1. **Create or Obtain an M3U Playlist:**
+   - Use a media player like VLC to export your current playlist as an M3U file.
+   - Alternatively, create a text file with the `.m3u` extension listing the paths to your audio files.
+
+2. **Ensure Correct Formatting:**
+   - Each track should have proper metadata for accurate parsing.
+
+#### Single Audio Files
+
+1. **Supported Formats:**
+   - `.mp3`, `.flac`, `.wav`, `.m4a`, `.aac`, `.ogg`
+
+2. **Metadata Requirements:**
+   - Ensure audio files have accurate **Artist** and **Title** tags using tagging software like [MP3Tag](https://www.mp3tag.de/en/) or [MusicBrainz Picard](https://picard.musicbrainz.org/).
+
+#### Folders Containing Audio Files
+
+1. **Organize Your Music:**
+   - Place all desired audio files within a single folder or multiple subfolders.
+
+2. **Metadata Requirements:**
+   - Ensure accurate metadata tags for better track identification.
+
+### Running the Script
+
+1. **Activate the Virtual Environment:**
+
+   - **macOS:**
+
+     ```bash
+     source venv/bin/activate
+     ```
+
+   - **Windows:**
+
+     ```bash
+     venv\Scripts\activate
+     ```
+
+2. **Run the Script:**
 
    ```bash
-   python m3u_recommender_playlist.py /path/to/your/playlist.m3u
+   python seedify.py <path_to_m3u_playlist_or_audio_file_or_folder>
    ```
 
-2. **Authentication**:
+   *Replace `<path_to_m3u_playlist_or_audio_file_or_folder>` with your input path.*
 
-   - A web browser window will open for Spotify authentication.
-   - Log in and authorize the app.
+   **Examples:**
 
-3. **Follow Prompts**:
+   - **M3U Playlist:**
 
-   - Enter a name for the new playlist when prompted.
-   - Optionally, add a description.
+     ```bash
+     python seedify.py ~/Music/MyPlaylist.m3u
+     ```
 
-4. **Completion**:
+   - **Single Audio File:**
 
-   - The script will process the playlist, generate recommendations, and create a new playlist in your Spotify account.
-   - Upon success, a message will display the number of tracks added.
+     ```bash
+     python seedify.py ~/Music/Songs/FavoriteSong.mp3
+     ```
+
+   - **Folder:**
+
+     ```bash
+     python seedify.py ~/Music/Albums/
+     ```
+
+### User Prompts
+
+During execution, Seedify will guide you through several prompts to customize your playlist.
+
+#### Additional Criteria
+
+Specify additional criteria to refine recommendations:
+
+- **Target Vibe (Valence):** `0.0` (sad) to `1.0` (happy)
+- **Target Popularity:** `0` (least popular) to `100` (most popular)
+- **Tempo (BPM):** Minimum and/or maximum
+- **Energy:** `0.0` (least energetic) to `1.0` (most energetic)
+- **Danceability:** `0.0` (least danceable) to `1.0` (most danceable)
+- **Release Year:** Minimum and/or maximum
+
+*Example Prompt Flow:*
+
+```plaintext
+Do you want to specify additional criteria for the recommendations? (yes/no): yes
+Enter target vibe (0.0 - 1.0 / sad - happy, optional): 0.7
+Enter target popularity (0 - 100, optional): 50
+Enter minimum tempo in BPM (optional): 120
+Enter maximum tempo in BPM (optional): 140
+Enter target energy (0.0 - 1.0, optional): 0.6
+Enter target danceability (0.0 - 1.0, optional): 0.8
+Enter minimum release year (optional): 2015
+Enter maximum release year (optional): 2023
+```
+
+#### Maximum Playlist Length
+
+Specify the maximum number of tracks. Defaults to the number of input seed tracks.
+
+*Example:*
+
+```plaintext
+Enter the maximum length of the playlist (default is 10): 20
+```
+
+#### Playlist Naming
+
+Seedify suggests a playlist name based on common genres. You can accept the suggestion or provide your own.
+
+*Example:*
+
+```plaintext
+Suggested playlist name: 'Pop, Rock, Indie Playlist 2024-04-27 15:30'
+Enter a name for the new playlist (press Enter to accept the suggested name): My Custom Playlist
+```
+
+You can also add an optional description for your playlist.
 
 ## Troubleshooting
 
-- **Authentication Issues**:
+### 1. **Spotify API Error: 400 Bad Request**
 
-  - Ensure the `REDIRECT_URI` matches in both the script and Spotify Developer Dashboard.
-  - If the browser doesn't open automatically, copy the provided URL into your browser.
+**Cause:**  
+Exceeded the maximum number of seed tracks (Spotify allows up to 5).
 
-- **Module Not Found Error**:
+**Solution:**  
+Ensure you're using the latest version of Seedify, which batches seed tracks into groups of 5.
 
-  - Install missing packages:
+### 2. **Authentication Failed**
 
-    ```bash
-    pip install spotipy cryptography
-    ```
+**Cause:**  
+Incorrect `CLIENT_ID` or `CLIENT_SECRET`, or incorrect Redirect URI.
 
-- **Invalid Client ID/Secret**:
+**Solution:**  
+- Verify your Spotify Developer credentials.
+- Ensure the Redirect URI `http://localhost:8888/callback` is set in your Spotify Developer Dashboard.
 
-  - Double-check the credentials entered during the initial run.
-  - Delete `credentials.enc` and `key.key`, then rerun the script to re-enter credentials.
+### 3. **Unsupported Audio Format**
 
-- **No Tracks Found**:
+**Cause:**  
+Audio file format not supported.
 
-  - Verify the `.m3u` file has the correct format.
-  - Ensure the file contains tracks with artist and title information.
+**Solution:**  
+Use supported formats: `.mp3`, `.flac`, `.wav`, `.m4a`, `.aac`, `.ogg`.
 
-- **API Rate Limits**:
+### 4. **Missing Metadata**
 
-  - If you encounter rate limit errors, wait for a few minutes before retrying.
+**Cause:**  
+Audio files lack proper **Artist** and **Title** tags.
 
-## Security Note
+**Solution:**  
+Use tagging software like [MP3Tag](https://www.mp3tag.de/en/) or [MusicBrainz Picard](https://picard.musicbrainz.org/) to add or correct metadata.
 
-- **Credential Encryption**:
+### 5. **Rate Limiting**
 
-  - Your `CLIENT_ID` and `CLIENT_SECRET` are encrypted using the `cryptography` library.
-  - The encryption key is stored in `key.key`, and encrypted credentials are in `credentials.enc`.
-  - Do not share these files with others.
+**Cause:**  
+Exceeding Spotify's rate limits due to too many rapid API requests.
+
+**Solution:**  
+Seedify includes short pauses between API calls. If issues persist, consider increasing the sleep duration in the script.
+
+### 6. **Missing Dependencies**
+
+**Cause:**  
+Required Python packages are not installed.
+
+**Solution:**  
+Ensure you've run `pip install -r requirements.txt` within the activated virtual environment.
 
 ## Contributing
 
-Contributions are welcome! Please follow these steps:
+Contributions are welcome! Follow these steps:
 
-1. **Fork the Repository**:
+1. **Fork the Repository:** Click the **Fork** button at the top-right corner.
+2. **Clone Your Fork:**
 
-   - Create a fork on GitHub.
+   ```bash
+   git clone https://github.com/yourusername/seedify.git
+   cd seedify
+   ```
 
-2. **Create a Branch**:
+3. **Create a New Branch:**
 
-   - For new features: `git checkout -b feature/your-feature-name`
-   - For bug fixes: `git checkout -b bugfix/your-bugfix-name`
+   ```bash
+   git checkout -b feature/YourFeatureName
+   ```
 
-3. **Commit Your Changes**:
+4. **Make Your Changes:** Implement your feature or fix.
+5. **Commit Your Changes:**
 
-   - Write clear and concise commit messages.
+   ```bash
+   git commit -m "Add feature: Your Feature Description"
+   ```
 
-4. **Push to Your Fork**:
+6. **Push to Your Fork:**
 
-   - `git push origin your-branch-name`
+   ```bash
+   git push origin feature/YourFeatureName
+   ```
 
-5. **Submit a Pull Request**:
-
-   - Provide a detailed description of your changes.
+7. **Create a Pull Request:** Navigate to the original repository and open a pull request detailing your changes.
 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
 
-## Acknowledgments
+## Contact
 
-- **[Spotipy](https://spotipy.readthedocs.io/)**: A lightweight Python library for the Spotify Web API.
-- **[Cryptography](https://cryptography.io/en/latest/)**: A package to encrypt and decrypt data.
+For questions or suggestions, feel free to open an issue or reach out to [your.email@example.com](mailto:your.email@example.com).
 
 ---
 
-Feel free to customize and enhance this script to suit your needs. Enjoy your personalized music recommendations!
+**Happy Listening! 🎶**
