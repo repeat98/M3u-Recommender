@@ -1,2 +1,5 @@
 .cache
 venv/
+.DS_Store
+.DS_Store
+playlist_counter.txt

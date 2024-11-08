@@ -44,7 +44,8 @@ def parse_m3u(file_path):
     tracks = []
     with open(file_path, 'r', encoding='utf-8') as file:
         lines = file.readlines()
-        for i in range(len(lines)):
+        i = 0
+        while i < len(lines):
             line = lines[i].strip()
             if line.startswith('#EXTINF:'):
                 info = line.split('#EXTINF:')[1]
@@ -53,14 +54,36 @@ def parse_m3u(file_path):
                 if match:
                     artist = match.group(1).strip()
                     title = match.group(2).strip()
-                    tracks.append({'artist': artist, 'title': title})
                 else:
                     # Handle cases where the format is different
                     title_info = info.split(',', 1)[-1]
                     if ' - ' in title_info:
                         artist, title = title_info.split(' - ', 1)
-                        tracks.append({'artist': artist.strip(), 'title': title.strip()})
-        return tracks
+                        artist = artist.strip()
+                        title = title.strip()
+                    else:
+                        # If format is unknown, set artist and title as unknown
+                        artist = 'unknown artist'
+                        title = 'unknown title'
+
+                # Check for unknown artist and title
+                if artist.lower() == 'unknown artist' and title.lower() == 'unknown title':
+                    # Try to use filename
+                    i += 1  # Move to the next line which should be the file path
+                    if i < len(lines):
+                        file_line = lines[i].strip()
+                        filename = os.path.basename(file_line)
+                        # Remove file extension
+                        filename_no_ext = os.path.splitext(filename)[0]
+                        # Try to split filename into artist and title
+                        if ' - ' in filename_no_ext:
+                            artist, title = filename_no_ext.split(' - ', 1)
+                        else:
+                            title = filename_no_ext
+                            artist = 'unknown artist'
+                tracks.append({'artist': artist.strip(), 'title': title.strip()})
+            i += 1
+    return tracks
 
 
 def search_track(sp, artist, title):
@@ -150,7 +173,23 @@ def main():
 
     if all_recommended_track_ids:
         user_id = sp.me()['id']
-        playlist_name = input("\nEnter a name for the new playlist: ").strip()
+        # Suggest a playlist name based on previous launches
+        counter_file = 'playlist_counter.txt'
+        if os.path.exists(counter_file):
+            with open(counter_file, 'r') as f:
+                counter = int(f.read().strip())
+        else:
+            counter = 0
+        counter += 1
+        with open(counter_file, 'w') as f:
+            f.write(str(counter))
+        default_playlist_name = f"My Recommended Playlist {counter}"
+
+        print(f"\nSuggested playlist name: '{default_playlist_name}'")
+        playlist_name = input("Enter a name for the new playlist (press Enter to accept the suggested name): ").strip()
+        if not playlist_name:
+            playlist_name = default_playlist_name
+
         playlist_description = input("Enter a description for the new playlist (optional): ").strip()
 
         print("\nCreating new playlist on your Spotify account...")
