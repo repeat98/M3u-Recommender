@@ -4,6 +4,8 @@ import os
 import re
 import sys
 from cryptography.fernet import Fernet
+import datetime
+from collections import Counter
 
 
 def load_key():
@@ -96,8 +98,8 @@ def search_track(sp, artist, title):
         return None
 
 
-def get_recommendations(sp, seed_tracks):
-    recommendations = sp.recommendations(seed_tracks=seed_tracks, limit=10)
+def get_recommendations(sp, seed_tracks, **kwargs):
+    recommendations = sp.recommendations(seed_tracks=seed_tracks, limit=10, **kwargs)
     return recommendations['tracks']
 
 
@@ -110,6 +112,17 @@ def add_tracks_to_playlist(sp, playlist_id, track_ids):
     # Spotify API allows adding up to 100 tracks at a time
     for i in range(0, len(track_ids), 100):
         sp.playlist_add_items(playlist_id, track_ids[i:i+100])
+
+
+def get_genres(sp, artist_ids):
+    genres = []
+    # Batch the artist IDs
+    for i in range(0, len(artist_ids), 50):
+        batch_ids = artist_ids[i:i+50]
+        artists = sp.artists(batch_ids)['artists']
+        for artist in artists:
+            genres.extend(artist['genres'])
+    return genres
 
 
 def main():
@@ -148,9 +161,82 @@ def main():
         return
 
     all_recommended_track_ids = set()
+    all_recommended_artist_ids = set()
     batch_size = 5
 
     print("\nProcessing playlist and generating recommendations...")
+
+    # Collect additional criteria from the user
+    additional_params = {}
+    add_criteria = input("Do you want to specify additional criteria for the recommendations? (yes/no): ").strip().lower()
+    if add_criteria in ['yes', 'y']:
+        # Target Valence
+        target_valence = input("Enter target vibe (0.0 - 1.0 / sad - happy, optional): ").strip()
+        if target_valence:
+            try:
+                val = float(target_valence)
+                if 0.0 <= val <= 1.0:
+                    additional_params['target_valence'] = val
+                else:
+                    print("Valence must be between 0.0 and 1.0. Skipping this criterion.")
+            except ValueError:
+                print("Invalid input for valence. Skipping this criterion.")
+
+        # Target Popularity
+        target_popularity = input("Enter target popularity (0 - 100, optional): ").strip()
+        if target_popularity:
+            try:
+                val = int(target_popularity)
+                if 0 <= val <= 100:
+                    additional_params['target_popularity'] = val
+                else:
+                    print("Popularity must be between 0 and 100. Skipping this criterion.")
+            except ValueError:
+                print("Invalid input for popularity. Skipping this criterion.")
+
+        # Min Tempo
+        min_tempo = input("Enter minimum tempo in BPM (optional): ").strip()
+        if min_tempo:
+            try:
+                val = float(min_tempo)
+                additional_params['min_tempo'] = val
+            except ValueError:
+                print("Invalid input for minimum tempo. Skipping this criterion.")
+
+        # Max Tempo
+        max_tempo = input("Enter maximum tempo in BPM (optional): ").strip()
+        if max_tempo:
+            try:
+                val = float(max_tempo)
+                additional_params['max_tempo'] = val
+            except ValueError:
+                print("Invalid input for maximum tempo. Skipping this criterion.")
+
+        # Target Energy
+        target_energy = input("Enter target energy (0.0 - 1.0, optional): ").strip()
+        if target_energy:
+            try:
+                val = float(target_energy)
+                if 0.0 <= val <= 1.0:
+                    additional_params['target_energy'] = val
+                else:
+                    print("Energy must be between 0.0 and 1.0. Skipping this criterion.")
+            except ValueError:
+                print("Invalid input for energy. Skipping this criterion.")
+
+        # Target Danceability
+        target_danceability = input("Enter target danceability (0.0 - 1.0, optional): ").strip()
+        if target_danceability:
+            try:
+                val = float(target_danceability)
+                if 0.0 <= val <= 1.0:
+                    additional_params['target_danceability'] = val
+                else:
+                    print("Danceability must be between 0.0 and 1.0. Skipping this criterion.")
+            except ValueError:
+                print("Invalid input for danceability. Skipping this criterion.")
+    else:
+        print("Proceeding without additional criteria.")
 
     for i in range(0, len(tracks), batch_size):
         batch_tracks = tracks[i:i+batch_size]
@@ -165,25 +251,51 @@ def main():
                 print(f"Seed track not found on Spotify: {track['artist']} - {track['title']}")
 
         if seed_track_ids:
-            recommendations = get_recommendations(sp, seed_track_ids)
+            recommendations = get_recommendations(sp, seed_track_ids, **additional_params)
             for rec_track in recommendations:
                 all_recommended_track_ids.add(rec_track['id'])
+                # Collect artist IDs
+                for artist in rec_track['artists']:
+                    all_recommended_artist_ids.add(artist['id'])
         else:
             print(f"No valid seed tracks found in batch starting at index {i}. Skipping recommendations for this batch.")
 
     if all_recommended_track_ids:
         user_id = sp.me()['id']
-        # Suggest a playlist name based on previous launches
-        counter_file = 'playlist_counter.txt'
-        if os.path.exists(counter_file):
-            with open(counter_file, 'r') as f:
-                counter = int(f.read().strip())
+
+        # New code to print the recommended tracks before creating the playlist
+        print("\nRecommended Tracks:")
+        recommended_tracks = []
+        track_ids_list = list(all_recommended_track_ids)
+        for i in range(0, len(track_ids_list), 50):  # Spotify API limit
+            batch_ids = track_ids_list[i:i+50]
+            tracks_info = sp.tracks(batch_ids)['tracks']
+            for track in tracks_info:
+                track_name = track['name']
+                artists = ', '.join([artist['name'] for artist in track['artists']])
+                print(f"{artists} - {track_name}")
+                recommended_tracks.append({'name': track_name, 'artists': artists})
+
+        print("\nAnalyzing genres of the recommended tracks...")
+        genres = get_genres(sp, list(all_recommended_artist_ids))
+        if genres:
+            # Count genre frequencies
+            genre_counts = Counter(genres)
+            # Get top genres
+            top_genres = [genre.title() for genre, count in genre_counts.most_common(3)]
+            # Build the playlist name
+            genre_part = ', '.join(top_genres)
         else:
-            counter = 0
-        counter += 1
-        with open(counter_file, 'w') as f:
-            f.write(str(counter))
-        default_playlist_name = f"My Recommended Playlist {counter}"
+            genre_part = "Various Genres"
+
+        # Get current date and time
+        current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        # Build default playlist name
+        default_playlist_name = f"{genre_part} Playlist {current_datetime}"
+        # Ensure playlist name isn't too long
+        max_length = 100
+        if len(default_playlist_name) > max_length:
+            default_playlist_name = default_playlist_name[:max_length]
 
         print(f"\nSuggested playlist name: '{default_playlist_name}'")
         playlist_name = input("Enter a name for the new playlist (press Enter to accept the suggested name): ").strip()
@@ -196,7 +308,7 @@ def main():
         playlist_id = create_playlist(sp, user_id, playlist_name, playlist_description)
 
         print("Adding recommended tracks to the new playlist...")
-        add_tracks_to_playlist(sp, playlist_id, list(all_recommended_track_ids))
+        add_tracks_to_playlist(sp, playlist_id, track_ids_list)
 
         print(f"Playlist '{playlist_name}' created successfully with {len(all_recommended_track_ids)} tracks!")
     else:
